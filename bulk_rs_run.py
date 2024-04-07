@@ -165,7 +165,7 @@ for connection in sna_models:
                     gt = test_df[(test_df['user_id'] == user_id) & (test_df['rating'] > pos_rating)].item_id.to_list()
                     if len(recs) > 0 and len(gt) > 0:
                         for item_id, estimated_rating, true_rating in recs:
-                            if true_rating == round(estimated_rating, 1):
+                            if estimated_rating >=3 and true_rating >=3:
                                 hits += 1
                         total += len(recs)  
                     total_gt += len(gt)
