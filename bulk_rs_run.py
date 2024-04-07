@@ -7,8 +7,10 @@ from utils import load_filtered_data
 
 city = "Springfield"
 sna_models = ['categories', 'business_reviews', 'business_tips', 'categories_and_reviews', 'combined', 'friendships', 'priority_combined', 'threshold_categories']
+#sna_models = ['priority_combined']
+
 n_recommendations = 5
-pos_rating = 4
+pos_rating = 2
 remove_users_with_less_than_x_reviews = 3
 
 
@@ -28,23 +30,27 @@ reviews = reviews.groupby(['user_id', 'business_id'])['stars'].mean().reset_inde
 reviews.columns = ['user_id', 'business_id', 'rating']
 
 
-def recommend_top_n(algo, trainset, user_id, n=10):
+def recommend_top_n(algo, trainset, testset, n=3):
     '''
     Recommend top n items for a user using a recommender model
     '''
-    user_ratings = trainset.ur[user_id]
-    items = [item_id for (item_id, _) in user_ratings]
 
-    item_scores = {}
-    # this is actually not the most correct way to do this, but it works
-    for item_id in trainset.all_items():
-        if item_id not in items:
-            prediction = algo.predict(trainset.to_raw_uid(user_id), trainset.to_raw_iid(item_id), verbose=True)
-            item_scores[item_id] = prediction.est
+    algo.fit(trainset)
+    predictions = algo.test(testset)
+    recommendations = {}
 
-    top_items = sorted(item_scores, key=item_scores.get, reverse=True)[:n]
+    for uid, iid, true_r, est, _ in predictions:
+        if uid not in recommendations:
+            recommendations[uid] = []
+        recommendations[uid].append((iid, est, true_r))
 
-    return [trainset.to_raw_iid(i) for i in top_items]
+    for uid, user_recs in recommendations.items():
+        user_recs.sort(key=lambda x: x[1], reverse=True)  # Sort by estimated rating in descending order
+        top_n_recs = [(iid, est, true_r) for iid, est, true_r in user_recs[:n]]  # Get the top n items
+        recommendations[uid] = top_n_recs
+
+    return recommendations
+
 
 def evaluate_algorithm(algo, trainset, testset):
     '''
@@ -73,6 +79,8 @@ for connection in sna_models:
             community_matrices[i] = community_matrices[i].pivot_table(index='user_id', columns='business_id',
                                                                       values='rating')
 
+        community_matrices = {k: v[v >= 3].dropna(axis=0, how='all') for k, v in community_matrices.items()}
+
         initial_len = len(community_matrices)
 
         # remove users with less than x reviews
@@ -92,11 +100,13 @@ for connection in sna_models:
 
         community_trainsets = {}
         community_testsets = {}
-
+        filtered_matrices = {}
         for community_id, matrix in community_matrices.items():
+            # matrix_filtered = matrix[matrix >= 3].dropna(axis=0, how='all')
+            # filtered_matrices[community_id] = matrix_filtered
+
             user_review_counts = matrix.apply(lambda row: row.count(), axis=1)
             users_with_min_reviews = user_review_counts[user_review_counts >= 3].index.tolist()
-
             matrix_filtered = matrix.loc[users_with_min_reviews]
             df = matrix_filtered.stack().reset_index()
             df.columns = ['user_id', 'business_id', 'rating']
@@ -116,7 +126,7 @@ for connection in sna_models:
                 pd.DataFrame(trainset[community_id], columns=['user_id', 'business_id', 'rating']), reader)
             test_data = Dataset.load_from_df(
                 pd.DataFrame(testset[community_id], columns=['user_id', 'business_id', 'rating']), reader)
-
+            
             community_trainsets[community_id] = train_data.build_full_trainset()
             community_testsets[community_id] = test_data.build_full_trainset().build_testset()
 
@@ -137,44 +147,55 @@ for connection in sna_models:
         community_test_dfs = {}
         for community_id, testset in community_testsets.items():
             community_test_dfs[community_id] = pd.DataFrame(testset, columns=['user_id', 'item_id', 'rating'])
-
+        
 
         hits = 0
         total = 0
-
+        total_gt = 0
         for community_id in community_trainsets.keys():
             test_df = community_test_dfs[community_id]
+            if not test_df.empty:
+                recommendations = {}
+                if len(community_trainsets[community_id].all_users()) == 0:
+                    continue
+                recommendations = recommend_top_n(algo, community_trainsets[community_id], community_testsets[community_id], n_recommendations)
 
-            community_recommendations = {}
-            if len(community_trainsets[community_id].all_users()) == 0:
-                continue
-            for index in range(len(community_trainsets[community_id].all_users())):
-                user_id = community_trainsets[community_id].all_users()[index]
-                recommendations = recommend_top_n(algo, community_trainsets[community_id], user_id, n_recommendations)
-                community_recommendations[user_id] = recommendations
-
-            for user_id, recommendations in community_recommendations.items():
-                gt = test_df[(test_df['user_id'] == user_id) & (test_df['rating'] > pos_rating)].item_id.to_list()
-                hits += len(set(gt).intersection(set(recommendations)))
-                total += n_recommendations
+                for user_id, recs in recommendations.items():
+                    print(recs)
+                    gt = test_df[(test_df['user_id'] == user_id) & (test_df['rating'] > pos_rating)].item_id.to_list()
+                    if len(recs) > 0 and len(gt) > 0:
+                        for item_id, estimated_rating, true_rating in recs:
+                            if true_rating == round(estimated_rating, 1):
+                                hits += 1
+                        total += len(recs)  
+                    total_gt += len(gt)
 
         if total == 0:
             precision = 0
         else:
             precision = hits / total
-        if len(test_df[test_df['rating'] > pos_rating]) == 0:
+        if total_gt == 0:
             recall = 0
         else:
-            recall = hits / len(test_df[test_df['rating'] > pos_rating])
+            recall = hits / total_gt
         if precision + recall == 0:
             f1 = 0
         else:
             f1 = 2 * (precision * recall) / (precision + recall)
+        
 
+        if (hasattr(algo, 'sim_options')):
+            if algo.sim_options['user_based'] is None:
+                boolean_user_based = ' '
+            elif algo.sim_options['user_based']:
+                boolean_user_based = ' user_based'
+            elif algo.sim_options['user_based'] == False:
+                boolean_user_based = ' item_based'
+                
         results.append({
             'city': city,
             'connection': connection,
-            'algo': algo.__class__.__name__,
+            'algo': algo.__class__.__name__ +  boolean_user_based,
             'precision': precision,
             'recall': recall,
             'f1': f1,
