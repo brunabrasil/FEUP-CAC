@@ -10,7 +10,7 @@ sna_models = ['categories', 'business_reviews', 'business_tips', 'categories_and
 #sna_models = ['priority_combined']
 
 n_recommendations = 1
-pos_rating = 2
+pos_rating = 3
 remove_users_with_less_than_x_reviews = 3
 
 
@@ -190,23 +190,22 @@ for connection in sna_models:
 
                     user_test_df = test_df[test_df['user_id'] == user_id] # testset of user
 
-                    ranked_test = user_test_df[user_test_df['rating'] > pos_rating].sort_values(by='rating', ascending=False) # order test by rating and consider that the user only likes if user greater than pos rating
+                    top_ranks = user_test_df[user_test_df['rating'] > pos_rating] # consider that the user only likes if user greater than pos rating
                     
-                    test_top_items = ranked_test['item_id'].tolist()
+                    test_relevant_items = top_ranks['item_id'].tolist()
 
                     position = 1
                     sum_precision = 0
                     hits = 0
-                    if len(test_top_items) > 0:
-                        for item in test_top_items:
-                            if position <= len(recs):
-                                if item == recs[position-1]:
-                                    hits += 1 # successful prediction
-                                    sum_precision += (hits / position)
-                            position += 1
-                        avg_precision += sum_precision / len(test_top_items)
+                    for item_rec in recs: 
+                        if item_rec in test_relevant_items: # if recommended item is in the relevante items list
+                            hits += 1 # successful prediction
+                            sum_precision += (hits / position)
+                        position += 1
+                    if hits > 0:
+                        avg_precision += sum_precision / hits
 
-        final_avg_precision = avg_precision / n_user # mean of users' avg_precision
+        map = avg_precision / n_user # mean of users' avg_precision
             
         if (hasattr(algo, 'sim_options')):
             if algo != svd_algo and algo != random_algo:  # Exclude SVD and NormalPredictor
@@ -221,7 +220,7 @@ for connection in sna_models:
             'precision': precision,
             'recall': recall,
             'f1': f1,
-            'avg_precision': final_avg_precision,
+            'MAP': map,
             'avg rmse': total_rmse,
             'avg mae': total_mae,
             'sparsity': sparsity,
