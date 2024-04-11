@@ -9,7 +9,7 @@ city = "Springfield"
 sna_models = ['categories', 'business_reviews', 'business_tips', 'categories_and_reviews', 'combined', 'friendships', 'priority_combined', 'threshold_categories']
 #sna_models = ['priority_combined']
 
-n_recommendations = 5
+n_recommendations = 1
 pos_rating = 2
 remove_users_with_less_than_x_reviews = 3
 
@@ -30,24 +30,16 @@ reviews = reviews.groupby(['user_id', 'business_id'])['stars'].mean().reset_inde
 reviews.columns = ['user_id', 'business_id', 'rating']
 
 
-def recommend_top_n(algo, trainset, testset, n=3):
+def recommend_top_n(all_recommendations):
     '''
-    Recommend top n items for a user using a recommender model
+    Recommend top n items for each user
     '''
-
-    algo.fit(trainset)
-    predictions = algo.test(testset)
     recommendations = {}
-
-    for uid, iid, true_r, est, _ in predictions:
-        if uid not in recommendations:
-            recommendations[uid] = []
-        recommendations[uid].append((iid, est, true_r))
-
-    for uid, user_recs in recommendations.items():
-        user_recs.sort(key=lambda x: x[1], reverse=True)  # Sort by estimated rating in descending order
-        top_n_recs = [(iid, est, true_r) for iid, est, true_r in user_recs[:n]]  # Get the top n items
-        recommendations[uid] = top_n_recs
+    for uid, user_recs in all_recommendations.items():
+        user_recs_filtered = [(iid, est) for iid, est in user_recs if est > pos_rating] # Dont recommend bellow pos rating
+        user_recs_filtered.sort(key=lambda x: x[1], reverse=True)  # Sort by estimated rating in descending order
+        top_n_items = [iid for iid, _ in user_recs_filtered[:n_recommendations]]
+        recommendations[uid] = top_n_items
 
     return recommendations
 
@@ -57,7 +49,6 @@ def evaluate_algorithm(algo, trainset, testset):
     Evaluate the algorithm using RMSE
     '''
     if (len(trainset.all_users()) == 0) or (len(trainset.all_items()) == 0):
-        print('No data.')
         return None
 
     algo.fit(trainset)
@@ -78,8 +69,6 @@ for connection in sna_models:
             community_matrices[i] = reviews[reviews['user_id'].isin(community)]
             community_matrices[i] = community_matrices[i].pivot_table(index='user_id', columns='business_id',
                                                                       values='rating')
-
-        community_matrices = {k: v[v >= 3].dropna(axis=0, how='all') for k, v in community_matrices.items()}
 
         initial_len = len(community_matrices)
 
@@ -102,8 +91,6 @@ for connection in sna_models:
         community_testsets = {}
         filtered_matrices = {}
         for community_id, matrix in community_matrices.items():
-            # matrix_filtered = matrix[matrix >= 3].dropna(axis=0, how='all')
-            # filtered_matrices[community_id] = matrix_filtered
 
             user_review_counts = matrix.apply(lambda row: row.count(), axis=1)
             users_with_min_reviews = user_review_counts[user_review_counts >= 3].index.tolist()
@@ -130,67 +117,102 @@ for connection in sna_models:
             community_trainsets[community_id] = train_data.build_full_trainset()
             community_testsets[community_id] = test_data.build_full_trainset().build_testset()
 
+        # ------ BINARY METRICS ------
         total_rmse = 0
         total_mae = 0
         count_rmse_mae = 0
+        rights = 0
+        total_recommendations = 0
+        total_good_items = 0
+        all_recommendations = {}
         for community_id, trainset in community_trainsets.items():
             testset = community_testsets[community_id]
             predictions = evaluate_algorithm(algo, trainset, testset)
+            all_recommendations[community_id] = {}
+
             if predictions is not None:
                 count_rmse_mae += 1
                 total_rmse += accuracy.rmse(predictions)
                 total_mae += accuracy.mae(predictions)
+                for uid, iid, true_r, est, _ in predictions:
 
+                    if uid not in all_recommendations:
+                        all_recommendations[community_id][uid] = []
+
+                    all_recommendations[community_id][uid].append((iid, est))
+
+                    if(est > pos_rating):
+                        total_recommendations += 1 # count the number of recommendations made
+
+                    if (true_r > pos_rating): # if true rating is greater than pos rating, it is a good item
+                        total_good_items += 1 # count the number of good/relevant items 
+
+                        if (est > pos_rating): # if rating estimated also greater than pos_rating, the recommendation is right
+                            rights += 1
+                
         total_rmse /= count_rmse_mae
         total_mae /= count_rmse_mae
+
+        if total_recommendations == 0:
+            precision = 0
+        else:
+            precision = rights / total_recommendations
+
+        if total_good_items == 0:
+            recall = 0
+        else:
+            recall = rights / total_good_items
+        
+        if precision + recall == 0:
+            f1 = 0
+        else:
+            f1 = 2 * (precision * recall) / (precision + recall)
 
         community_test_dfs = {}
         for community_id, testset in community_testsets.items():
             community_test_dfs[community_id] = pd.DataFrame(testset, columns=['user_id', 'item_id', 'rating'])
         
+        # ------ RANK METRICS ------
 
-        hits = 0
-        total = 0
-        total_gt = 0
+        avg_precision = 0 # sum of avg precision of each user
+        n_user = 0 # number of users being recommended
+
         for community_id in community_trainsets.keys():
             test_df = community_test_dfs[community_id]
             if not test_df.empty:
-                recommendations = {}
                 if len(community_trainsets[community_id].all_users()) == 0:
                     continue
-                recommendations = recommend_top_n(algo, community_trainsets[community_id], community_testsets[community_id], n_recommendations)
 
-                for user_id, recs in recommendations.items():
-                    print(recs)
-                    gt = test_df[(test_df['user_id'] == user_id) & (test_df['rating'] > pos_rating)].item_id.to_list()
-                    if len(recs) > 0 and len(gt) > 0:
-                        for item_id, estimated_rating, true_rating in recs:
-                            if estimated_rating >=3 and true_rating >=3:
-                                hits += 1
-                        total += len(recs)  
-                    total_gt += len(gt)
+                best_recommendations = recommend_top_n(all_recommendations[community_id]) # list of best recommendations ordered
+                
+                for user_id, recs in best_recommendations.items():
+                    n_user += 1
 
-        if total == 0:
-            precision = 0
-        else:
-            precision = hits / total
-        if total_gt == 0:
-            recall = 0
-        else:
-            recall = hits / total_gt
-        if precision + recall == 0:
-            f1 = 0
-        else:
-            f1 = 2 * (precision * recall) / (precision + recall)
-        
+                    user_test_df = test_df[test_df['user_id'] == user_id] # testset of user
 
+                    ranked_test = user_test_df[user_test_df['rating'] > pos_rating].sort_values(by='rating', ascending=False) # order test by rating and consider that the user only likes if user greater than pos rating
+                    
+                    test_top_items = ranked_test['item_id'].tolist()
+
+                    position = 1
+                    sum_precision = 0
+                    hits = 0
+                    if len(test_top_items) > 0:
+                        for item in test_top_items:
+                            if position <= len(recs):
+                                if item == recs[position-1]:
+                                    hits += 1 # successful prediction
+                                    sum_precision += (hits / position)
+                            position += 1
+                        avg_precision += sum_precision / len(test_top_items)
+
+        final_avg_precision = avg_precision / n_user # mean of users' avg_precision
+            
         if (hasattr(algo, 'sim_options')):
-            if algo.sim_options['user_based'] is None:
-                boolean_user_based = ' '
-            elif algo.sim_options['user_based']:
-                boolean_user_based = ' user_based'
-            elif algo.sim_options['user_based'] == False:
-                boolean_user_based = ' item_based'
+            if algo != svd_algo and algo != random_algo:  # Exclude SVD and NormalPredictor
+                boolean_user_based = ' user_based' if algo.sim_options['user_based'] else ' item_based'
+            else:
+                boolean_user_based = '' 
                 
         results.append({
             'city': city,
@@ -199,6 +221,7 @@ for connection in sna_models:
             'precision': precision,
             'recall': recall,
             'f1': f1,
+            'avg_precision': final_avg_precision,
             'avg rmse': total_rmse,
             'avg mae': total_mae,
             'sparsity': sparsity,
