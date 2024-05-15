@@ -1,2 +1,6 @@
 /__pycache__
 /yelp_dataset
+/nlp/data/*
+/nlp/embeddings/*
+/nlp/features/*
+/nlp/models/*
