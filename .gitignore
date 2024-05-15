@@ -4,3 +4,4 @@
 /nlp/embeddings/*
 /nlp/features/*
 /nlp/models/*
+/time_series/data/*
