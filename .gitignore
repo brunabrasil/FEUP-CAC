@@ -5,3 +5,4 @@
 /nlp/features/*
 /nlp/models/*
 /time_series/data/*
+/time_series/features/*
