@@ -1,5 +1,4 @@
 classifier,best_parameters,best_f1
-gaussian_nb,{},0.5065980589216799
 decision_tree,{'max_depth': 10},0.5306139337130708
 random_forest,"{'max_depth': None, 'n_estimators': 200}",0.623274152507785
 svm,"{'C': 1.0, 'kernel': 'rbf'}",0.7215333767954311
