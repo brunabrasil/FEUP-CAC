@@ -25,14 +25,14 @@
 
 - **filtered_cities** - CSV files storing only the relevant data for the project (from the selected city or cities), to avoid loading the whole dataset each time
 
-- **nlp** - Notebooks dedicated to exploring Natural Language Processing
+- **nlp** - notebooks dedicated to exploring Natural Language Processing
   - nlp/**data** - folder where the sentiment for each review is stored (review_sentiment.txt) as well as the corpus of each review (corpus.txt)
   - nlp/**embeddings** - folder where the reviews model and word vectors are stored for future use without retraining
   - nlp/**features** - folder where sparse and dense vectors are stored after transformations
 
 - **time_series** - Notebooks dedicated to exploring Time Series
   - time_series/**data** - folder where we save the positive/neutral/negatives reviews per month, as well as, the total/Restaurant/Nightlife/Breakfast&Brunch mean sentiment per month
-  - time_series/**models** - folder where the ARIMA models are stored so that there is no need for retraining every time
+  - time_series/**models** - folder where the ARIMA models are stored
   - time_series/**features** - folder that saves the same information as data but in each dataset there are more features, such as, box_cox, trend, seasonal, residual, etc.
 
 #### Files
@@ -41,20 +41,20 @@
 
 - **utils.py** - few helper methods for data loading
 
-- nlp/**data.ipynb** - The file loads, processes, and analyzes review data to determine sentiment and visualize word usage patterns.
+- nlp/**data.ipynb** - loads, processes, and analyzes review data to determine sentiment and visualize word usage patterns
 
-- nlp/**embeddings.ipynb** - This file loads and preprocesses review sentiment data, trains a Word2Vec model to generate word embeddings, and visualizes the embeddings using t-SNE for semantic analysis.
+- nlp/**embeddings.ipynb** - loads and preprocesses review sentiment data, trains a Word2Vec model to generate word embeddings, and visualizes the embeddings using t-SNE for semantic analysis
 
-- nlp/**feature_engineering.ipynb** - The file is a Python script that performs text preprocessing, applies various feature engineering techniques including word embeddings and topic modeling, and visualizes the results.
+- nlp/**feature_engineering.ipynb** - performs text preprocessing, applies various feature engineering techniques including word embeddings and topic modeling, and visualizes the results
 
-- nlp/**modelling.ipynb** - This Python script performs sentiment analysis and classification tasks, including feature extraction, model selection, hyperparameter tuning, evaluation, and visualization.
+- nlp/**modelling.ipynb** - performs sentiment analysis and classification tasks, including feature extraction, model selection, hyperparameter tuning, evaluation, and visualization
 
-- time_series/**data.ipynb** - This Python script analyzes Yelp data for St. Louis, including sentiment analysis of reviews, time series plots for user activity and check-ins, and exploration of top business categories.
+- time_series/**data.ipynb** - analyzes Yelp data for St. Louis, including sentiment analysis of reviews, time series plots for user activity and check-ins, and exploration of top business categories
 
-- time_series/**feature_engineering.ipynb** - This file conducts feature engineering, including Box-Cox transformations and additive decomposition, on time series data for sentiment analysis of reviews.
+- time_series/**patterns.ipynb** - conducts comprehensive time series analysis on sentiment data, including loading, plotting lag and autocorrelation, testing stationarity, and visualizing rolling statistics
 
-- time_series/**arima.ipynb** - The file performs ARIMA modeling on various sentiment time series data, including negative, neutral, and positive reviews, along with sentiment analysis for different categories like restaurants, nightlife, and breakfast & brunch.
+- time_series/**feature_engineering.ipynb** - conducts feature engineering, including Box-Cox transformations and additive decomposition, on time series data for sentiment analysis of reviews
 
-- time_series/**modelling.ipynb** - The file performs time series forecasting using various models, including ARIMA and exponential smoothing, for different sentiment categories like negative, neutral, and positive reviews, with evaluations and predictions presented.
+- time_series/**arima.ipynb** - performs ARIMA modeling on various sentiment time series data, including negative, neutral, and positive reviews, along with sentiment analysis for different categories like restaurants, nightlife, and breakfast & brunch
 
-- time_series/**patterns.ipynb** - This file conducts comprehensive time series analysis on sentiment data, including loading, plotting lag and autocorrelation, testing stationarity, and visualizing rolling statistics.
+- time_series/**modelling.ipynb** - performs time series forecasting using various models, including ARIMA and exponential smoothing, for different sentiment categories like negative, neutral, and positive reviews, with evaluations and predictions presented
