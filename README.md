@@ -1,5 +1,22 @@
 # Machine Learning Complements Project
 
+[Course page](https://sigarra.up.pt/feup/en/UCURR_GERAL.FICHA_UC_VIEW?pv_ocorrencia_id=518813)
+
+### First project - Recommender Systems + Social Network Analysis
+RS + SNA branch
+
+Community-Based Recommendations: used SNA to identify user communities and applied an RS to each community
+
+See [presentation](https://github.com/DiogoSilva11/CAC/blob/RS_and_SNA/docs/presentation.pdf)
+
+### Second project - Natural Language Processing + Time series
+Main branch
+
+Sentiment Analysis Over Time: implemented NLP to predict sentiment in reviews and tracked its evolution over time.
+
+See [presentation](https://github.com/DiogoSilva11/CAC/blob/main/docs/CAC_groupC_proj2.pdf)
+
+----
 **Project developed by [Group C]:**
 
 | Name | Student Number |
@@ -15,7 +32,7 @@
 
 [Dataset Documentation](https://www.yelp.com/dataset/documentation/main)
 
-## Natural Language Processing + Time series
+## 2n project - Natural Language Processing + Time series
 
 ### Project Structure
 
