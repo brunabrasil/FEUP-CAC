@@ -1,7 +1,10 @@
-# Machine Learning Complements Project
+# FEUP - Machine Learning Complements
 
-[Course page](https://sigarra.up.pt/feup/en/UCURR_GERAL.FICHA_UC_VIEW?pv_ocorrencia_id=518813)
+> 2023/2024 - Master's 1st year, 2nd semester
 
+[Machine Learning Complements](https://sigarra.up.pt/feup/en/UCURR_GERAL.FICHA_UC_VIEW?pv_ocorrencia_id=518813 "course page") course.
+
+--- 
 ### First project - Recommender Systems + Social Network Analysis
 RS + SNA branch
 
@@ -32,7 +35,7 @@ See [presentation](https://github.com/DiogoSilva11/CAC/blob/main/docs/CAC_groupC
 
 [Dataset Documentation](https://www.yelp.com/dataset/documentation/main)
 
-## 2n project - Natural Language Processing + Time series
+## 2nd project - Natural Language Processing + Time series
 
 ### Project Structure
 
